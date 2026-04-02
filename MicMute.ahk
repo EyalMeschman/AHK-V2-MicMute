@@ -1,30 +1,42 @@
 #Requires AutoHotkey v2.0
 #SingleInstance Force
 
+#Include lib\Config.ahk
 #Include lib\MicController.ahk
 #Include lib\HotkeyMgr.ahk
 #Include lib\TrayMenu.ahk
 #Include lib\SoundFeedback.ahk
 #Include lib\Overlay.ahk
+#Include lib\OSD.ahk
+
+; --- Load config ---
+configPath := A_ScriptDir . "\config.json"
+cfg := Config.Load(configPath)
 
 ; --- Initialize components ---
 mic := MicController()
 hkMgr := HotkeyMgr()
 tray := TrayMenu(mic, A_ScriptDir . "\resources\icons")
 sound := SoundFeedback(A_ScriptDir . "\resources\sounds")
-ovl := Overlay({iconsDir: A_ScriptDir . "\resources\icons", size: 38})
+sound.Enabled := cfg.soundEnabled
+ovl := Overlay({iconsDir: A_ScriptDir . "\resources\icons", size: cfg.overlaySize, monitor: cfg.overlayMonitor})
+notify := OSD()
+notify.Enabled := cfg.osdEnabled
 
 ; --- State change handler ---
 mic.OnStateChange := OnMicStateChange
 
-; --- Register hotkey (F7 to toggle) ---
-hkMgr.Register("F7", (*) => mic.Toggle())
+; --- Register hotkey ---
+hkMgr.Register(cfg.hotkey, (*) => mic.Toggle())
 
-; --- Show initial state ---
+; --- Show initial state (without sound on startup) ---
+sound.Enabled := false
 OnMicStateChange(mic.IsMuted)
+sound.Enabled := cfg.soundEnabled
 
 OnMicStateChange(isMuted) {
     tray.UpdateIcon(isMuted)
     ovl.Update(isMuted)
+    notify.Show(isMuted ? "Microphone Muted" : "Microphone Online", isMuted)
     sound.Play(isMuted ? "mute" : "unmute")
 }

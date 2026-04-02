@@ -40,7 +40,8 @@ class Overlay {
         }
 
         ; Pick which monitor to display on (default: secondary, fallback: primary)
-        monitor := HasProp(options, "monitor") ? options.monitor : this._GetSecondaryMonitor()
+        monitorOpt := HasProp(options, "monitor") ? options.monitor : 0
+        monitor := monitorOpt = 0 ? this._GetSecondaryMonitor() : monitorOpt
         MonitorGetWorkArea(monitor, &left, &top, &right, &bottom)
         this._x := right - this._winSize - 50
         this._y := top + 77
