@@ -16,12 +16,12 @@ cfg := Config.Load(configPath)
 ; --- Initialize components ---
 mic := MicController()
 hkMgr := HotkeyMgr()
-tray := TrayMenu(mic, A_ScriptDir . "\resources\icons")
 sound := SoundFeedback(A_ScriptDir . "\resources\sounds")
 sound.Enabled := cfg.soundEnabled
 ovl := Overlay({iconsDir: A_ScriptDir . "\resources\icons", size: cfg.overlaySize, monitor: cfg.overlayMonitor})
 notify := OSD()
 notify.Enabled := cfg.osdEnabled
+tray := TrayMenu(mic, A_ScriptDir . "\resources\icons", cfg, configPath, sound, notify, ovl)
 
 ; --- State change handler ---
 mic.OnStateChange := OnMicStateChange

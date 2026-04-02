@@ -1,7 +1,7 @@
-{
-  "hotkey": "F7",
-  "soundEnabled": true,
+﻿{
+  "hotkey": "^!m",
   "osdEnabled": true,
+  "overlayMonitor": 2,
   "overlaySize": 40,
-  "overlayMonitor": 0
+  "soundEnabled": true
 }

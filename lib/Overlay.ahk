@@ -86,6 +86,15 @@ class Overlay {
         this._visible := false
     }
 
+    SetMonitor(monitorOpt) {
+        monitor := monitorOpt = 0 ? this._GetSecondaryMonitor() : monitorOpt
+        MonitorGetWorkArea(monitor, &left, &top, &right, &bottom)
+        this._x := right - this._winSize - 50
+        this._y := top + 77
+        if this._visible
+            this.Show()
+    }
+
     ToggleVisibility() {
         if this._visible
             this.Hide()
