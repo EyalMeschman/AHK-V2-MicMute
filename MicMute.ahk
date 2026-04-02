@@ -3,12 +3,18 @@
 
 #Include lib\MicController.ahk
 #Include lib\HotkeyMgr.ahk
+#Include lib\TrayMenu.ahk
+#Include lib\SoundFeedback.ahk
+#Include lib\Overlay.ahk
 
 ; --- Initialize components ---
 mic := MicController()
 hkMgr := HotkeyMgr()
+tray := TrayMenu(mic, A_ScriptDir . "\resources\icons")
+sound := SoundFeedback(A_ScriptDir . "\resources\sounds")
+ovl := Overlay({iconsDir: A_ScriptDir . "\resources\icons", size: 38})
 
-; --- State change handler (tooltip feedback for now) ---
+; --- State change handler ---
 mic.OnStateChange := OnMicStateChange
 
 ; --- Register hotkey (F7 to toggle) ---
@@ -18,7 +24,7 @@ hkMgr.Register("F7", (*) => mic.Toggle())
 OnMicStateChange(mic.IsMuted)
 
 OnMicStateChange(isMuted) {
-    state := isMuted ? "MUTED" : "UNMUTED"
-    ToolTip("Mic: " . state)
-    SetTimer(() => ToolTip(), -2000)
+    tray.UpdateIcon(isMuted)
+    ovl.Update(isMuted)
+    sound.Play(isMuted ? "mute" : "unmute")
 }
