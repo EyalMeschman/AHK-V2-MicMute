@@ -46,7 +46,7 @@ That's it. No build step, no dependencies, no package manager.
 
 ## Configuration
 
-Settings are stored in `config.json` and persist across restarts:
+Settings are stored in `config.json` (auto-created when you first change a setting) and persist across restarts:
 
 ```json
 {
@@ -58,14 +58,13 @@ Settings are stored in `config.json` and persist across restarts:
 }
 ```
 
-| Setting          | Description                                                   |
-| ---------------- | ------------------------------------------------------------- |
-| `hotkey`         | AHK hotkey string                                             |
-| `soundEnabled`   | Play sounds on mute/unmute                                    |
-| `osdEnabled`     | Show on-screen notification                                   |
-| `overlaySize`    | Overlay icon size in pixels                                   |
-| `overlayMonitor` | Monitor number                                                |
-
+| Setting          | Description                 |
+| ---------------- | --------------------------- |
+| `hotkey`         | AHK hotkey string           |
+| `soundEnabled`   | Play sounds on mute/unmute  |
+| `osdEnabled`     | Show on-screen notification |
+| `overlaySize`    | Overlay icon size in pixels |
+| `overlayMonitor` | Monitor number              |
 
 ## License
 

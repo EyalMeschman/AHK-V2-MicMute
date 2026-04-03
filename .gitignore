@@ -1,0 +1,17 @@
+# Compiled binary
+*.exe
+
+# User config
+config.json
+
+# Build artifacts
+build/
+
+# Docs / plans
+docs/
+
+# IDE / editor
+.vscode/
+
+# AutoHotkey
+*.cpk
