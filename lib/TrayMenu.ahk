@@ -1,11 +1,11 @@
 #Requires AutoHotkey v2.0
-#Include Config.ahk
 
 class TrayMenu {
     static REG_KEY := "HKCU\Software\Microsoft\Windows\CurrentVersion\Run"
     static REG_VALUE := "MicMute"
 
     _micController := ""
+    _hkMgr := ""
     _mutedIcon := ""
     _unmutedIcon := ""
     _cfg := ""
@@ -14,8 +14,9 @@ class TrayMenu {
     _notify := ""
     _ovl := ""
 
-    __New(micController, iconsDir, cfg, configPath, sound, notify, ovl) {
+    __New(micController, hkMgr, iconsDir, cfg, configPath, sound, notify, ovl) {
         this._micController := micController
+        this._hkMgr := hkMgr
         this._cfg := cfg
         this._configPath := configPath
         this._sound := sound
@@ -33,8 +34,8 @@ class TrayMenu {
         ; Add our items
         A_TrayMenu.Add("Toggle Mute", (*) => this._micController.Toggle())
         A_TrayMenu.Add()  ; separator
-        A_TrayMenu.Add("Sound", (*) => this._ToggleSound())
-        A_TrayMenu.Add("Notifications", (*) => this._ToggleOSD())
+        A_TrayMenu.Add("Sound", (*) => this._ToggleOption("soundEnabled", "Sound", this._sound))
+        A_TrayMenu.Add("Notifications", (*) => this._ToggleOption("osdEnabled", "Notifications", this._notify))
         A_TrayMenu.Add()  ; separator
         A_TrayMenu.Add("Change Hotkey", (*) => this._ChangeHotkey())
         A_TrayMenu.Add("Overlay Monitor", (*) => this._ChangeMonitor())
@@ -64,23 +65,13 @@ class TrayMenu {
         A_IconTip := isMuted ? "MicMute - Muted" : "MicMute - Unmuted"
     }
 
-    _ToggleSound() {
-        this._cfg.soundEnabled := !this._cfg.soundEnabled
-        this._sound.Enabled := this._cfg.soundEnabled
-        if this._cfg.soundEnabled
-            A_TrayMenu.Check("Sound")
+    _ToggleOption(cfgKey, menuLabel, component) {
+        this._cfg.%cfgKey% := !this._cfg.%cfgKey%
+        component.Enabled := this._cfg.%cfgKey%
+        if this._cfg.%cfgKey%
+            A_TrayMenu.Check(menuLabel)
         else
-            A_TrayMenu.Uncheck("Sound")
-        this._SaveConfig()
-    }
-
-    _ToggleOSD() {
-        this._cfg.osdEnabled := !this._cfg.osdEnabled
-        this._notify.Enabled := this._cfg.osdEnabled
-        if this._cfg.osdEnabled
-            A_TrayMenu.Check("Notifications")
-        else
-            A_TrayMenu.Uncheck("Notifications")
+            A_TrayMenu.Uncheck(menuLabel)
         this._SaveConfig()
     }
 
@@ -96,7 +87,7 @@ class TrayMenu {
         hkGui.OnEvent("Close", (*) => hkGui.Hide())
 
         ; Temporarily disable current hotkey so it doesn't intercept
-        try Hotkey(this._cfg.hotkey, "Off")
+        this._hkMgr.Unregister(this._cfg.hotkey)
 
         hkGui.Show("AutoSize")
         WinWaitClose(hkGui)
@@ -105,16 +96,19 @@ class TrayMenu {
         hkGui.Destroy()
 
         if !saved || newKey = "" {
-            ; Re-enable old hotkey if cancelled
-            try Hotkey(this._cfg.hotkey, "On")
+            ; Re-register old hotkey if cancelled
+            this._hkMgr.Register(this._cfg.hotkey, (*) => this._micController.Toggle())
             return
         }
 
-        ; Unregister old, register new
-        try Hotkey(this._cfg.hotkey, "Off")
-        this._cfg.hotkey := newKey
-        Hotkey(this._cfg.hotkey, (*) => this._micController.Toggle(), "On")
-        this._SaveConfig()
+        ; Register new hotkey
+        try {
+            this._hkMgr.Register(newKey, (*) => this._micController.Toggle())
+            this._cfg.hotkey := newKey
+            this._SaveConfig()
+        } catch {
+            this._hkMgr.Register(this._cfg.hotkey, (*) => this._micController.Toggle())
+        }
     }
 
     _ChangeMonitor() {
@@ -137,7 +131,7 @@ class TrayMenu {
         monGui := Gui("+AlwaysOnTop -MinimizeBox", "Overlay Monitor")
         monGui.SetFont("s11", "Segoe UI")
         monGui.Add("Text", "w280", "Choose which monitor for the overlay:")
-        currentChoice := this._cfg.overlayMonitor = 0 ? this._ovl._GetSecondaryMonitor() : this._cfg.overlayMonitor
+        currentChoice := this._ovl.GetCurrentMonitor()
         ddl := monGui.Add("DropDownList", "w280 Choose" . currentChoice, choices)
         saveBtn := monGui.Add("Button", "w280 Default", "Save")
 

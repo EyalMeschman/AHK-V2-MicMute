@@ -24,37 +24,27 @@ class MicController {
     }
 
     Toggle() {
-        try {
-            endpointVolume := this._GetEndpointVolume()
-            guidNull := Buffer(16, 0)
-            ComCall(14, endpointVolume, "Int", !this._isMuted, "Ptr", guidNull)
-            this._isMuted := !this._isMuted
-            this._connected := true
-            this._NotifyChange()
-        } catch {
-            this._OnDisconnect()
-        }
+        this._SetMute(!this._isMuted)
     }
 
     Mute() {
-        try {
-            endpointVolume := this._GetEndpointVolume()
-            guidNull := Buffer(16, 0)
-            ComCall(14, endpointVolume, "Int", 1, "Ptr", guidNull)
-            this._isMuted := true
-            this._connected := true
-            this._NotifyChange()
-        } catch {
-            this._OnDisconnect()
-        }
+        this._SetMute(true)
     }
 
     Unmute() {
+        this._SetMute(false)
+    }
+
+    _SetMute(state) {
         try {
             endpointVolume := this._GetEndpointVolume()
-            guidNull := Buffer(16, 0)
-            ComCall(14, endpointVolume, "Int", 0, "Ptr", guidNull)
-            this._isMuted := false
+            try {
+                guidNull := Buffer(16, 0)
+                ComCall(14, endpointVolume, "Int", state, "Ptr", guidNull)
+            } finally {
+                ObjRelease(endpointVolume)
+            }
+            this._isMuted := state
             this._connected := true
             this._NotifyChange()
         } catch {
@@ -73,10 +63,14 @@ class MicController {
         if !defaultDevice
             throw Error("No default capture device")
 
-        IID := Buffer(16)
-        DllCall("ole32\CLSIDFromString", "Str", "{5CDF2C82-841E-4546-9722-0CF74078229A}", "Ptr", IID, "UInt")
-        endpointVolume := 0
-        ComCall(3, defaultDevice, "Ptr", IID, "UInt", 23, "Ptr", 0, "Ptr*", &endpointVolume)
+        try {
+            IID := Buffer(16)
+            DllCall("ole32\CLSIDFromString", "Str", "{5CDF2C82-841E-4546-9722-0CF74078229A}", "Ptr", IID, "UInt")
+            endpointVolume := 0
+            ComCall(3, defaultDevice, "Ptr", IID, "UInt", 23, "Ptr", 0, "Ptr*", &endpointVolume)
+        } finally {
+            ObjRelease(defaultDevice)
+        }
         if !endpointVolume
             throw Error("Failed to get IAudioEndpointVolume")
 
@@ -86,9 +80,13 @@ class MicController {
     _ReadMuteState() {
         try {
             endpointVolume := this._GetEndpointVolume()
-            muted := 0
-            ComCall(15, endpointVolume, "UInt*", &muted)
-            return muted != 0
+            try {
+                muted := 0
+                ComCall(15, endpointVolume, "UInt*", &muted)
+                return muted != 0
+            } finally {
+                ObjRelease(endpointVolume)
+            }
         } catch {
             return this._isMuted
         }
@@ -96,7 +94,13 @@ class MicController {
 
     _CheckDevice() {
         try {
-            this._GetEndpointVolume()
+            deviceEnumerator := ComObject("{BCDE0395-E52F-467C-8E3D-C4579291692E}"
+                , "{A95664D2-9614-4F35-A746-DE8DB63617E6}")
+            defaultDevice := 0
+            ComCall(4, deviceEnumerator, "UInt", 1, "UInt", 0, "Ptr*", &defaultDevice)
+            if !defaultDevice
+                return false
+            ObjRelease(defaultDevice)
             return true
         }
         return false

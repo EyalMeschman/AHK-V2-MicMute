@@ -2,9 +2,6 @@
 
 class Overlay {
     static GDI_TOKEN := 0
-    static PADDING := 5
-    static CORNER_RADIUS := 5
-    static BG_COLOR := 0xEF232323  ; ARGB: 94% opaque dark gray
 
     _gui := ""
     _hwnd := 0
@@ -12,36 +9,33 @@ class Overlay {
     _hbm := 0
     _oldBm := 0
     _graphics := 0
-    _bgBrush := 0
     _mutedBitmap := 0
-    _unmutedBitmap := 0
     _iconSize := 32
     _winSize := 0
     _visible := false
     _x := 0
     _y := 0
+    _currentMonitor := 0
 
     __New(options := {}) {
         this._iconSize := HasProp(options, "size") ? options.size : 32
-        this._winSize := this._iconSize + 2 * Overlay.PADDING
+        this._winSize := this._iconSize + 10
 
         ; Start GDI+
         this._InitGdip()
 
-        ; Load icon bitmaps
+        ; Load icon bitmap
         iconsDir := HasProp(options, "iconsDir") ? options.iconsDir : ""
         if iconsDir != "" {
             mutedFile := iconsDir . "\overlay_muted.ico"
-            unmutedFile := iconsDir . "\overlay_unmuted.ico"
             if FileExist(mutedFile)
                 this._mutedBitmap := this._LoadBitmap(mutedFile)
-            if FileExist(unmutedFile)
-                this._unmutedBitmap := this._LoadBitmap(unmutedFile)
         }
 
         ; Pick which monitor to display on (default: secondary, fallback: primary)
         monitorOpt := HasProp(options, "monitor") ? options.monitor : 0
         monitor := monitorOpt = 0 ? this._GetSecondaryMonitor() : monitorOpt
+        this._currentMonitor := monitor
         MonitorGetWorkArea(monitor, &left, &top, &right, &bottom)
         this._x := right - this._winSize - 50
         this._y := top + 77
@@ -60,10 +54,6 @@ class Overlay {
         ; Set rendering quality
         DllCall("gdiplus\GdipSetSmoothingMode", "Ptr", this._graphics, "Int", 4)
         DllCall("gdiplus\GdipSetInterpolationMode", "Ptr", this._graphics, "Int", 7)
-
-        ; Create background brush
-        DllCall("gdiplus\GdipCreateSolidFill", "UInt", Overlay.BG_COLOR, "Ptr*", &brush := 0)
-        this._bgBrush := brush
     }
 
     Update(isMuted) {
@@ -88,6 +78,7 @@ class Overlay {
 
     SetMonitor(monitorOpt) {
         monitor := monitorOpt = 0 ? this._GetSecondaryMonitor() : monitorOpt
+        this._currentMonitor := monitor
         MonitorGetWorkArea(monitor, &left, &top, &right, &bottom)
         this._x := right - this._winSize - 50
         this._y := top + 77
@@ -100,6 +91,13 @@ class Overlay {
             this.Hide()
         else
             this.Show()
+    }
+
+    static Shutdown() {
+        if Overlay.GDI_TOKEN {
+            DllCall("gdiplus\GdiplusShutdown", "Ptr", Overlay.GDI_TOKEN)
+            Overlay.GDI_TOKEN := 0
+        }
     }
 
     ; --- Private methods ---
@@ -144,6 +142,10 @@ class Overlay {
             , "UInt", 2)  ; ULW_ALPHA
     }
 
+    GetCurrentMonitor() {
+        return this._currentMonitor
+    }
+
     _GetSecondaryMonitor() {
         primary := MonitorGetPrimary()
         count := MonitorGetCount()
@@ -186,36 +188,30 @@ class Overlay {
             , "Ptr*", 0, "Ptr", 0, "UInt", 0, "Ptr")
     }
 
-    _FillRoundedRect(graphics, brush, x, y, w, h, r) {
-        DllCall("gdiplus\GdipCreatePath", "Int", 0, "Ptr*", &path := 0)
-        d := r * 2.0
-        fw := Float(w)
-        fh := Float(h)
-        fx := Float(x)
-        fy := Float(y)
-        DllCall("gdiplus\GdipAddPathArc", "Ptr", path, "Float", fx, "Float", fy, "Float", d, "Float", d, "Float", 180.0, "Float", 90.0)
-        DllCall("gdiplus\GdipAddPathArc", "Ptr", path, "Float", fw - d, "Float", fy, "Float", d, "Float", d, "Float", 270.0, "Float", 90.0)
-        DllCall("gdiplus\GdipAddPathArc", "Ptr", path, "Float", fw - d, "Float", fh - d, "Float", d, "Float", d, "Float", 0.0, "Float", 90.0)
-        DllCall("gdiplus\GdipAddPathArc", "Ptr", path, "Float", fx, "Float", fh - d, "Float", d, "Float", d, "Float", 90.0, "Float", 90.0)
-        DllCall("gdiplus\GdipClosePathFigure", "Ptr", path)
-        DllCall("gdiplus\GdipFillPath", "Ptr", graphics, "Ptr", brush, "Ptr", path)
-        DllCall("gdiplus\GdipDeletePath", "Ptr", path)
+    Destroy() {
+        if this._mutedBitmap {
+            DllCall("gdiplus\GdipDisposeImage", "Ptr", this._mutedBitmap)
+            this._mutedBitmap := 0
+        }
+        if this._graphics {
+            DllCall("gdiplus\GdipDeleteGraphics", "Ptr", this._graphics)
+            this._graphics := 0
+        }
+        if this._oldBm {
+            DllCall("SelectObject", "Ptr", this._hdc, "Ptr", this._oldBm)
+            this._oldBm := 0
+        }
+        if this._hbm {
+            DllCall("DeleteObject", "Ptr", this._hbm)
+            this._hbm := 0
+        }
+        if this._hdc {
+            DllCall("DeleteDC", "Ptr", this._hdc)
+            this._hdc := 0
+        }
     }
 
     __Delete() {
-        if this._bgBrush
-            DllCall("gdiplus\GdipDeleteBrush", "Ptr", this._bgBrush)
-        if this._mutedBitmap
-            DllCall("gdiplus\GdipDisposeImage", "Ptr", this._mutedBitmap)
-        if this._unmutedBitmap
-            DllCall("gdiplus\GdipDisposeImage", "Ptr", this._unmutedBitmap)
-        if this._graphics
-            DllCall("gdiplus\GdipDeleteGraphics", "Ptr", this._graphics)
-        if this._oldBm
-            DllCall("SelectObject", "Ptr", this._hdc, "Ptr", this._oldBm)
-        if this._hbm
-            DllCall("DeleteObject", "Ptr", this._hbm)
-        if this._hdc
-            DllCall("DeleteDC", "Ptr", this._hdc)
+        this.Destroy()
     }
 }

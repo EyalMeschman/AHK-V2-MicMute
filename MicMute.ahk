@@ -21,7 +21,7 @@ sound.Enabled := cfg.soundEnabled
 ovl := Overlay({iconsDir: A_ScriptDir . "\resources\icons", size: cfg.overlaySize, monitor: cfg.overlayMonitor})
 notify := OSD()
 notify.Enabled := cfg.osdEnabled
-tray := TrayMenu(mic, A_ScriptDir . "\resources\icons", cfg, configPath, sound, notify, ovl)
+tray := TrayMenu(mic, hkMgr, A_ScriptDir . "\resources\icons", cfg, configPath, sound, notify, ovl)
 
 ; --- State change handler ---
 mic.OnStateChange := OnMicStateChange
@@ -33,6 +33,9 @@ hkMgr.Register(cfg.hotkey, (*) => mic.Toggle())
 sound.Enabled := false
 OnMicStateChange(mic.IsMuted)
 sound.Enabled := cfg.soundEnabled
+
+; --- Clean up GDI+ on exit ---
+OnExit((*) => (ovl.Destroy(), Overlay.Shutdown()))
 
 OnMicStateChange(isMuted) {
     tray.UpdateIcon(isMuted)

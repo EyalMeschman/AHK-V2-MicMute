@@ -10,9 +10,12 @@ class OSD {
 
     _gui := ""
     _text := ""
+    _accent := ""
     _enabled := true
     _hideFn := ""
     _scale := 1
+    _w := 0
+    _h := 0
 
     __New() {
         this._scale := A_ScreenDPI / 96

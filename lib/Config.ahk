@@ -2,12 +2,14 @@
 
 class Config {
     static Default := {
-        hotkey: "F7",
+        hotkey: "^!m",
         soundEnabled: true,
         osdEnabled: true,
         overlaySize: 40,
         overlayMonitor: 0,  ; 0 = secondary (fallback primary)
     }
+
+    static BooleanKeys := ["soundEnabled", "osdEnabled"]
 
     static Load(path) {
         if !FileExist(path)
@@ -20,11 +22,19 @@ class Config {
         cfg := Config.Default.Clone()
         ; Parse simple flat JSON
         for key, defaultVal in Config.Default.OwnProps() {
+            isBool := false
+            for bk in Config.BooleanKeys {
+                if key = bk {
+                    isBool := true
+                    break
+                }
+            }
+
             pattern := '"' . key . '"\s*:\s*'
             if defaultVal is String
                 pattern .= '"([^"]*)"'
-            else if defaultVal is Integer && (defaultVal = 0 || defaultVal = 1) && !(key ~= "Size|Monitor")
-                pattern .= '(true|false|\d+)'
+            else if isBool
+                pattern .= '(true|false)'
             else
                 pattern .= '(-?\d+)'
 
@@ -46,12 +56,17 @@ class Config {
     static Save(path, cfg) {
         lines := []
         for key, val in cfg.OwnProps() {
+            isBool := false
+            for bk in Config.BooleanKeys {
+                if key = bk {
+                    isBool := true
+                    break
+                }
+            }
             if val is String
                 lines.Push('  "' . key . '": "' . val . '"')
-            else if val = true
-                lines.Push('  "' . key . '": true')
-            else if val = false
-                lines.Push('  "' . key . '": false')
+            else if isBool
+                lines.Push('  "' . key . '": ' . (val ? "true" : "false"))
             else
                 lines.Push('  "' . key . '": ' . val)
         }
@@ -66,8 +81,10 @@ class Config {
         }
         text .= "}"
 
-        f := FileOpen(path, "w", "UTF-8")
-        f.Write(text)
-        f.Close()
+        try {
+            f := FileOpen(path, "w", "UTF-8")
+            f.Write(text)
+            f.Close()
+        }
     }
 }
